@@ -50,7 +50,7 @@
         </div>
       </div>
       <button class="lb-prev" @click="prevPhoto">‹</button>
-      <img class="lb-photo" :src="album.images[currentIndex]" :alt="album.imageNames[currentIndex]" @click.self="closeLightbox" />
+      <img class="lb-photo" :src="album.images[currentIndex]" :alt="album.imageNames[currentIndex]" @click.self="closeLightbox" @touchstart="onTouchStart" @touchend="onTouchEnd" />
       <button class="lb-next" @click="nextPhoto">›</button>
       <transition name="slide-right">
         <div v-if="showExif" class="exif-panel">
@@ -135,6 +135,23 @@ function closeLightbox() {
 function nextPhoto() {
   if (!album.value) return;
   currentIndex.value = (currentIndex.value + 1) % album.value.images.length;
+}
+
+let touchStartX = 0;
+let touchStartY = 0;
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.changedTouches[0].clientX;
+  touchStartY = e.changedTouches[0].clientY;
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+    if (dx < 0) nextPhoto();
+    else prevPhoto();
+  }
 }
 
 function prevPhoto() {
@@ -375,6 +392,17 @@ function onAlbumChange() {
 
 onBeforeRouteUpdate(() => {
   nextTick(() => onAlbumChange());
+});
+
+watch(album, (val, oldVal) => {
+  if (val && !oldVal) {
+    nextTick(() => {
+      setupObserver();
+      if (val.images.length > 0 && val.thumbs.some((t: string | null) => !t)) {
+        triggerThumbGeneration();
+      }
+    });
+  }
 });
 
 onMounted(() => {
