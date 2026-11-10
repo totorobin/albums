@@ -360,15 +360,20 @@ function setupObserver() {
 
 watch(() => props.id, () => {
   visibleCount.value = BATCH_SIZE;
+  thumbGenerating.value = false;
+  thumbGenerated.value = 0;
+  thumbTotal.value = 0;
   nextTick(() => setupObserver());
 });
 
 watch(album, (val) => {
   if (val) {
     nextTick(() => setupObserver());
-    triggerThumbGeneration();
+    if (val.images.length > 0 && val.thumbs.some((t: string | null) => !t)) {
+      triggerThumbGeneration();
+    }
   }
-});
+}, { immediate: true });
 
 onMounted(() => {
   window.addEventListener("keydown", onKeydown);
