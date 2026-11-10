@@ -7,6 +7,12 @@
     <template v-else>
       <h1 class="album-title">{{ album.title }}</h1>
 
+      <!-- Progression génération miniatures -->
+      <div v-if="thumbGenerating" class="thumb-progress">
+        <span class="thumb-spinner"></span>
+        <span>Création de miniatures manquantes… {{ thumbGenerated }} / {{ thumbTotal }}</span>
+      </div>
+
 
       <!-- Sous-albums -->
       <div v-if="subAlbums.length > 0" class="sub-albums">
@@ -26,11 +32,6 @@
       </div>
       <div ref="sentinelRef" class="scroll-sentinel"></div>
 
-      <!-- Progression génération miniatures -->
-      <div v-if="thumbGenerating" class="thumb-progress">
-        <span class="thumb-spinner"></span>
-        <span>Création de miniatures manquantes… {{ thumbGenerated }} / {{ thumbTotal }}</span>
-      </div>
     </template>
 
     <!-- Lightbox -->
