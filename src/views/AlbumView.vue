@@ -11,28 +11,7 @@
       <!-- Sous-albums -->
       <div v-if="subAlbums.length > 0" class="sub-albums">
         <h2 class="sub-albums-title">Sous-albums</h2>
-        <div class="albums-grid">
-          <router-link
-            v-for="sub in subAlbums"
-            :key="sub.id"
-            :to="{ name: 'album', params: { id: sub.id } }"
-            class="album-card"
-          >
-            <div class="album-thumb">
-              <img v-if="sub.thumbnail" :src="sub.thumbnail" :alt="sub.title" />
-              <div v-else class="no-thumb">📁</div>
-            </div>
-            <div class="album-card-info">
-              <h3>{{ sub.title }}</h3>
-              <div class="album-meta">
-                <span v-if="sub.date" class="album-meta-item">📅 {{ sub.date }}</span>
-                <span v-if="sub.author" class="album-meta-item">👤 {{ sub.author }}</span>
-                <span v-if="sub.lieu" class="album-meta-item">📍 {{ sub.lieu }}</span>
-              </div>
-              <span class="album-count">{{ sub.images.length }} photo(s)</span>
-            </div>
-          </router-link>
-        </div>
+        <AlbumGrid :albums="subAlbums" />
       </div>
 
       <div class="photos-grid">
@@ -42,10 +21,16 @@
           class="photo-card"
           @click="openLightbox(index)"
         >
-          <img :src="thumbSrc(img, index)" :alt="album.imageNames[index]" loading="lazy" decoding="async" />
+          <img :src="thumbSrc(img, index)" :alt="album.imageNames[index]" loading="lazy" decoding="async" @error="(e: Event) => (e.target as HTMLImageElement).src = img" />
         </div>
       </div>
       <div ref="sentinelRef" class="scroll-sentinel"></div>
+
+      <!-- Progression génération miniatures -->
+      <div v-if="thumbGenerating" class="thumb-progress">
+        <span class="thumb-spinner"></span>
+        <span>Création de miniatures manquantes… {{ thumbGenerated }} / {{ thumbTotal }}</span>
+      </div>
     </template>
 
     <!-- Lightbox -->
@@ -89,6 +74,8 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from "vue";
 import type { Album } from "@/types";
 import { albums } from "@/albums";
+import AlbumGrid from "@/components/AlbumGrid.vue";
+import { parseDateScore } from "@/utils";
 
 const props = defineProps<{ id: string }>();
 
@@ -97,14 +84,15 @@ const album = computed<Album | null>(() =>
 );
 
 const subAlbums = computed(() =>
-  albums.value.filter((a) => {
-    if (!a.id.includes("/")) return false;
-    const parentId = a.id.substring(0, a.id.lastIndexOf("/"));
-    if (parentId !== props.id) return false;
-    // Masquer les sous-albums vides (sans photos et sans sous-albums)
-    const hasSubAlbums = albums.value.some((s) => s.id.startsWith(a.id + "/") && !s.id.substring(a.id.length + 1).includes("/"));
-    return a.images.length > 0 || hasSubAlbums;
-  }),
+  albums.value
+    .filter((a) => {
+      if (!a.id.includes("/")) return false;
+      const parentId = a.id.substring(0, a.id.lastIndexOf("/"));
+      if (parentId !== props.id) return false;
+      const hasSubAlbums = albums.value.some((s) => s.id.startsWith(a.id + "/") && !s.id.substring(a.id.length + 1).includes("/"));
+      return a.images.length > 0 || hasSubAlbums;
+    })
+    .sort((a, b) => parseDateScore(b.date) - parseDateScore(a.date)),
 );
 
 const parentRoute = computed(() => {
@@ -305,11 +293,45 @@ function thumbSrc(img: string, index: number): string {
   return thumb || img;
 }
 
-function triggerThumbGeneration() {
-  if (!album.value || album.value.hasThumbs) return;
-  if (album.value.images.length === 0) return;
-  fetch(`generate_thumbs.php?album=${encodeURIComponent(album.value.id)}`)
-    .catch(() => {});
+const thumbGenerating = ref(false);
+const thumbGenerated = ref(0);
+const thumbTotal = ref(0);
+
+async function triggerThumbGeneration() {
+  if (!album.value) return;
+  // Trouver les images sans miniature
+  const missing: { index: number; name: string }[] = [];
+  album.value.thumbs.forEach((t, i) => {
+    if (!t) missing.push({ index: i, name: album.value!.imageNames[i] });
+  });
+  if (missing.length === 0) return;
+
+  thumbGenerating.value = true;
+  thumbGenerated.value = 0;
+  thumbTotal.value = missing.length;
+
+  const albumId = album.value.id;
+  for (const item of missing) {
+    try {
+      const resp = await fetch(
+        `generate_thumbs.php?album=${encodeURIComponent(albumId)}&file=${encodeURIComponent(item.name)}`
+      );
+      const data = await resp.json();
+      if (data.status === 'generated' || data.status === 'skipped') {
+        // Mettre à jour le thumb dans l'album pour affichage immédiat
+        if (album.value && album.value.id === albumId) {
+          const albumUrl = 'photos/' + albumId.split('/').map(encodeURIComponent).join('/');
+          album.value.thumbs[item.index] = albumUrl + '/thumbs/' + encodeURIComponent(item.name);
+        }
+      }
+    } catch { /* ignore */ }
+    thumbGenerated.value++;
+  }
+
+  if (album.value && album.value.id === albumId) {
+    album.value.hasThumbs = true;
+  }
+  thumbGenerating.value = false;
 }
 
 const BATCH_SIZE = 20;
@@ -459,6 +481,29 @@ onUnmounted(() => {
   width: 100%;
 }
 
+.thumb-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 1rem;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.thumb-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ddd;
+  border-top-color: #183a63;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
 /* Sous-albums */
 .sub-albums {
@@ -472,94 +517,6 @@ onUnmounted(() => {
   margin-bottom: 1rem;
 }
 
-.albums-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.2rem;
-}
-
-@media (max-width: 480px) {
-  .albums-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.6rem;
-  }
-
-  .album-thumb {
-    height: 100px;
-  }
-
-  .album-card-info {
-    padding: 0.5rem;
-  }
-
-  .album-card-info h3 {
-    font-size: 0.85rem;
-  }
-}
-
-.album-card {
-  background: #fff;
-  border: 1px solid #e8e0d0;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.album-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(24, 58, 99, 0.12);
-}
-
-.album-thumb {
-  width: 100%;
-  height: 160px;
-  overflow: hidden;
-  background: #f0f4f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.album-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.no-thumb {
-  font-size: 3rem;
-  color: #b89a5a;
-}
-
-.album-card-info {
-  padding: 0.8rem;
-}
-
-.album-card-info h3 {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #183a63;
-  margin-bottom: 0.2rem;
-}
-
-.album-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-bottom: 0.3rem;
-}
-
-.album-meta-item {
-  font-size: 0.75rem;
-  color: #666;
-}
-
-.album-count {
-  font-size: 0.8rem;
-  color: #888;
-}
 
 /* Lightbox */
 .lightbox {

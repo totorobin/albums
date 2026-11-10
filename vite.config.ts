@@ -105,12 +105,12 @@ export default defineConfig(({ mode }) => {
             res.end(JSON.stringify(albums));
           });
 
-          // Simulate generate_thumbs.php (no-op in dev, thumbs served as-is)
+          // Simulate generate_thumbs.php (no-op in dev, returns skipped)
           server.middlewares.use("/generate_thumbs.php", (req, res) => {
             const url = new URL(req.url || "", "http://localhost");
-            const albumParam = url.searchParams.get("album") || "";
+            const file = url.searchParams.get("file") || "";
             res.setHeader("Content-Type", "application/json; charset=utf-8");
-            res.end(JSON.stringify({ album: albumParam, generated: 0, skipped: 0, errors: [] }));
+            res.end(JSON.stringify({ status: "skipped", file }));
           });
 
           // Serve photo files
