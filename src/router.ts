@@ -6,7 +6,7 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/", name: "home", component: HomeView },
-    { path: "/album/:id(.*)", name: "album", component: AlbumView, props: true },
+    { path: "/album/:id(.*)", name: "album", component: AlbumView },
   ],
 });
 

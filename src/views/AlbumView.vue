@@ -72,15 +72,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from "vue";
+import { useRoute, onBeforeRouteUpdate } from "vue-router";
 import type { Album } from "@/types";
 import { albums } from "@/albums";
 import AlbumGrid from "@/components/AlbumGrid.vue";
 import { parseDateScore } from "@/utils";
 
-const props = defineProps<{ id: string }>();
+const route = useRoute();
+const albumId = computed(() => route.params.id as string);
 
 const album = computed<Album | null>(() =>
-  albums.value.find((a: Album) => a.id === props.id) || null,
+  albums.value.find((a: Album) => a.id === albumId.value) || null,
 );
 
 const subAlbums = computed(() =>
@@ -88,7 +90,7 @@ const subAlbums = computed(() =>
     .filter((a) => {
       if (!a.id.includes("/")) return false;
       const parentId = a.id.substring(0, a.id.lastIndexOf("/"));
-      if (parentId !== props.id) return false;
+      if (parentId !== albumId.value) return false;
       const hasSubAlbums = albums.value.some((s) => s.id.startsWith(a.id + "/") && !s.id.substring(a.id.length + 1).includes("/"));
       return a.images.length > 0 || hasSubAlbums;
     })
@@ -96,16 +98,16 @@ const subAlbums = computed(() =>
 );
 
 const parentRoute = computed(() => {
-  if (props.id.includes("/")) {
-    const parentId = props.id.substring(0, props.id.lastIndexOf("/"));
+  if (albumId.value.includes("/")) {
+    const parentId = albumId.value.substring(0, albumId.value.lastIndexOf("/"));
     return { name: "album", params: { id: parentId } };
   }
   return "/";
 });
 
 const parentLabel = computed(() => {
-  if (props.id.includes("/")) {
-    const parentId = props.id.substring(0, props.id.lastIndexOf("/"));
+  if (albumId.value.includes("/")) {
+    const parentId = albumId.value.substring(0, albumId.value.lastIndexOf("/"));
     const parent = albums.value.find((a) => a.id === parentId);
     return `Retour à ${parent ? parent.title : "l'album parent"}`;
   }
@@ -314,7 +316,7 @@ async function triggerThumbGeneration() {
   for (const item of missing) {
     try {
       const resp = await fetch(
-        `generate_thumbs.php?album=${encodeURIComponent(albumId)}&file=${encodeURIComponent(item.name)}`
+        `/generate_thumbs.php?album=${encodeURIComponent(albumId)}&file=${encodeURIComponent(item.name)}`
       );
       const data = await resp.json();
       if (data.status === 'generated' || data.status === 'skipped') {
@@ -358,26 +360,26 @@ function setupObserver() {
   observer.observe(sentinelRef.value);
 }
 
-watch(() => props.id, () => {
+function onAlbumChange() {
   visibleCount.value = BATCH_SIZE;
   thumbGenerating.value = false;
   thumbGenerated.value = 0;
   thumbTotal.value = 0;
-  nextTick(() => setupObserver());
-});
-
-watch(album, (val) => {
-  if (val) {
-    nextTick(() => setupObserver());
-    if (val.images.length > 0 && val.thumbs.some((t: string | null) => !t)) {
+  nextTick(() => {
+    setupObserver();
+    if (album.value && album.value.images.length > 0 && album.value.thumbs.some((t: string | null) => !t)) {
       triggerThumbGeneration();
     }
-  }
-}, { immediate: true });
+  });
+}
+
+onBeforeRouteUpdate(() => {
+  nextTick(() => onAlbumChange());
+});
 
 onMounted(() => {
   window.addEventListener("keydown", onKeydown);
-  nextTick(() => setupObserver());
+  onAlbumChange();
 });
 onUnmounted(() => {
   window.removeEventListener("keydown", onKeydown);

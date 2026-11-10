@@ -28,6 +28,7 @@ jobs:
       - name: Copy server files to dist
         run: |
           cp api.php dist/
+          cp generate_thumbs.php dist/
           cp .htaccess dist/ 2>/dev/null || true
 
       - name: Deploy via FTP
