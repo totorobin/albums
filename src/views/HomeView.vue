@@ -22,6 +22,11 @@
         </div>
         <div class="album-info">
           <h2>{{ album.title }}</h2>
+          <div class="album-meta">
+            <span v-if="album.date" class="album-meta-item">📅 {{ album.date }}</span>
+            <span v-if="album.author" class="album-meta-item">👤 {{ album.author }}</span>
+            <span v-if="album.lieu" class="album-meta-item">📍 {{ album.lieu }}</span>
+          </div>
           <span class="album-count">{{ album.images.length }} photo(s)</span>
         </div>
       </router-link>
@@ -34,7 +39,12 @@ import { computed } from "vue";
 import { albums, loading } from "@/albums";
 
 const rootAlbums = computed(() =>
-  albums.value.filter((a) => !a.id.includes("/")),
+  albums.value.filter((a) => {
+    if (a.id.includes("/")) return false;
+    // Masquer les albums vides (sans photos et sans sous-albums)
+    const hasSubAlbums = albums.value.some((s) => s.id.startsWith(a.id + "/") && !s.id.substring(a.id.length + 1).includes("/"));
+    return a.images.length > 0 || hasSubAlbums;
+  }),
 );
 </script>
 
@@ -111,8 +121,44 @@ const rootAlbums = computed(() =>
   color: #183a63;
 }
 
+.album-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.3rem;
+}
+
+.album-meta-item {
+  font-size: 0.78rem;
+  color: #666;
+}
+
 .album-count {
   font-size: 0.85rem;
   color: #888;
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+
+  .albums-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .album-thumb {
+    height: 120px;
+  }
+
+  .album-info {
+    padding: 0.6rem;
+  }
+
+  .album-info h2 {
+    font-size: 0.9rem;
+  }
 }
 </style>

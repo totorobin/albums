@@ -69,6 +69,7 @@ a {
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem 20px;
+  overflow-x: hidden;
 }
 
 .app-footer {
@@ -97,5 +98,29 @@ a {
 .app-footer .sep {
   margin: 0 10px;
   opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  .header-inner {
+    height: 48px;
+    padding: 0 12px;
+  }
+
+  .app-title {
+    font-size: 1.1rem;
+  }
+
+  .app-main {
+    padding: 1rem 10px;
+  }
+
+  .app-footer {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  body {
+    padding-bottom: 40px;
+  }
 }
 </style>

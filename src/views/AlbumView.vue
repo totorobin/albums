@@ -24,6 +24,11 @@
             </div>
             <div class="album-card-info">
               <h3>{{ sub.title }}</h3>
+              <div class="album-meta">
+                <span v-if="sub.date" class="album-meta-item">📅 {{ sub.date }}</span>
+                <span v-if="sub.author" class="album-meta-item">👤 {{ sub.author }}</span>
+                <span v-if="sub.lieu" class="album-meta-item">📍 {{ sub.lieu }}</span>
+              </div>
               <span class="album-count">{{ sub.images.length }} photo(s)</span>
             </div>
           </router-link>
@@ -32,35 +37,41 @@
 
       <div class="photos-grid">
         <div
-          v-for="(img, index) in album.images"
+          v-for="(img, index) in visibleImages"
           :key="img"
           class="photo-card"
           @click="openLightbox(index)"
         >
-          <img :src="img" :alt="album.imageNames[index]" loading="lazy" />
-          <span class="photo-name">{{ album.imageNames[index] }}</span>
+          <img :src="thumbSrc(img, index)" :alt="album.imageNames[index]" loading="lazy" decoding="async" />
         </div>
       </div>
+      <div ref="sentinelRef" class="scroll-sentinel"></div>
     </template>
 
     <!-- Lightbox -->
     <div v-if="lightboxOpen && album" class="lightbox" @click.self="closeLightbox">
-      <button class="lb-close" @click="closeLightbox">✕</button>
-      <button class="lb-prev" @click="prevPhoto">‹</button>
-      <div class="lb-content">
-        <img :src="album.images[currentIndex]" :alt="album.imageNames[currentIndex]" />
-        <div class="lb-toolbar">
-          <p class="lb-caption">
-            {{ album.imageNames[currentIndex] }}
-            <span class="lb-counter">{{ currentIndex + 1 }} / {{ album.images.length }}</span>
-          </p>
-          <div class="lb-actions">
-            <button class="lb-action-btn" @click.stop="toggleExif" title="Infos EXIF">ℹ️</button>
-            <a class="lb-action-btn" :href="album.images[currentIndex]" :download="album.imageNames[currentIndex]" @click.stop title="Télécharger">⬇️</a>
-          </div>
+      <div class="lb-topbar">
+        <span class="lb-counter">{{ currentIndex + 1 }} / {{ album.images.length }}</span>
+        <div class="lb-actions">
+          <button class="lb-icon-btn" @click.stop="toggleExif" title="Infos EXIF">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+          <a class="lb-icon-btn" :href="album.images[currentIndex]" :download="album.imageNames[currentIndex]" @click.stop title="Télécharger">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </a>
+          <button class="lb-icon-btn" @click="closeLightbox" title="Fermer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
+      </div>
+      <button class="lb-prev" @click="prevPhoto">‹</button>
+      <img class="lb-photo" :src="album.images[currentIndex]" :alt="album.imageNames[currentIndex]" @click.self="closeLightbox" />
+      <button class="lb-next" @click="nextPhoto">›</button>
+      <transition name="slide-right">
         <div v-if="showExif" class="exif-panel">
-          <p v-if="exifLoading" class="exif-loading">Chargement des données EXIF…</p>
+          <h4 class="exif-title">Informations</h4>
+          <p class="exif-filename">{{ album.imageNames[currentIndex] }}</p>
+          <p v-if="exifLoading" class="exif-loading">Chargement…</p>
           <p v-else-if="!exifData" class="exif-loading">Aucune donnée EXIF disponible.</p>
           <table v-else class="exif-table">
             <tr v-for="(value, key) in exifData" :key="key">
@@ -69,14 +80,13 @@
             </tr>
           </table>
         </div>
-      </div>
-      <button class="lb-next" @click="nextPhoto">›</button>
+      </transition>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from "vue";
 import type { Album } from "@/types";
 import { albums } from "@/albums";
 
@@ -90,7 +100,10 @@ const subAlbums = computed(() =>
   albums.value.filter((a) => {
     if (!a.id.includes("/")) return false;
     const parentId = a.id.substring(0, a.id.lastIndexOf("/"));
-    return parentId === props.id;
+    if (parentId !== props.id) return false;
+    // Masquer les sous-albums vides (sans photos et sans sous-albums)
+    const hasSubAlbums = albums.value.some((s) => s.id.startsWith(a.id + "/") && !s.id.substring(a.id.length + 1).includes("/"));
+    return a.images.length > 0 || hasSubAlbums;
   }),
 );
 
@@ -113,7 +126,7 @@ const parentLabel = computed(() => {
 const lightboxOpen = ref(false);
 const currentIndex = ref(0);
 const showExif = ref(false);
-const exifData = ref<Record<string, string> | null>(null);
+const exifData = shallowRef<Record<string, string> | null>(null);
 const exifLoading = ref(false);
 
 function openLightbox(index: number) {
@@ -160,7 +173,7 @@ async function loadExif() {
   exifData.value = null;
   try {
     const url = album.value.images[currentIndex.value];
-    const resp = await fetch(url);
+    const resp = await fetch(url, { headers: { Range: 'bytes=0-65535' } });
     const buf = await resp.arrayBuffer();
     const parsed = parseExif(buf);
     exifData.value = parsed && Object.keys(parsed).length > 0 ? parsed : null;
@@ -263,9 +276,6 @@ function readIFD(buffer: ArrayBuffer, tiffStart: number, ifdOffset: number, le: 
       } else if (type === 4) { // LONG
         val = String(valueOffset);
       } else if (type === 5) { // RATIONAL
-        const num = view.getUint32(tiffStart - tiffStart + valueOffset, le);
-        const den = view.getUint32(tiffStart - tiffStart + valueOffset + 4, le);
-        // Use DataView on full buffer for rational
         const fullView = new DataView(buffer);
         const rNum = fullView.getUint32(tiffStart + valueOffset, le);
         const rDen = fullView.getUint32(tiffStart + valueOffset + 4, le);
@@ -289,8 +299,63 @@ watch(currentIndex, () => {
   }
 });
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
+function thumbSrc(img: string, index: number): string {
+  if (!album.value) return img;
+  const thumb = album.value.thumbs?.[index];
+  return thumb || img;
+}
+
+function triggerThumbGeneration() {
+  if (!album.value || album.value.hasThumbs) return;
+  if (album.value.images.length === 0) return;
+  fetch(`generate_thumbs.php?album=${encodeURIComponent(album.value.id)}`)
+    .catch(() => {});
+}
+
+const BATCH_SIZE = 20;
+const visibleCount = ref(BATCH_SIZE);
+const sentinelRef = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+const visibleImages = computed(() => {
+  if (!album.value) return [];
+  return album.value.images.slice(0, visibleCount.value);
+});
+
+function setupObserver() {
+  if (observer) observer.disconnect();
+  if (!sentinelRef.value) return;
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && album.value && visibleCount.value < album.value.images.length) {
+        visibleCount.value = Math.min(visibleCount.value + BATCH_SIZE, album.value.images.length);
+      }
+    },
+    { rootMargin: "400px" }
+  );
+  observer.observe(sentinelRef.value);
+}
+
+watch(() => props.id, () => {
+  visibleCount.value = BATCH_SIZE;
+  nextTick(() => setupObserver());
+});
+
+watch(album, (val) => {
+  if (val) {
+    nextTick(() => setupObserver());
+    triggerThumbGeneration();
+  }
+});
+
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  nextTick(() => setupObserver());
+});
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
+  if (observer) observer.disconnect();
+});
 </script>
 
 <style scoped>
@@ -314,44 +379,86 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
   letter-spacing: 0.02em;
 }
 
+@media (max-width: 480px) {
+  .album-title {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
 
 .photos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0.5rem 0;
+  margin-left: calc(-20px + 4px);
+  margin-right: calc(-20px + 4px);
 }
 
 .photo-card {
-  background: #fff;
-  border: 1px solid #e8e0d0;
-  border-radius: 8px;
+  background: none;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  flex-grow: 1;
+  height: 150px;
+  min-width: 100px;
+  max-width: 300px;
+  transition: transform 0.25s, box-shadow 0.25s;
+  transform: rotate(var(--rotate, 0deg));
+  box-shadow: 2px 3px 12px rgba(24, 58, 99, 0.07);
+  contain: layout style paint;
 }
 
+.photo-card:nth-child(3n+1) { --rotate: -1deg; }
+.photo-card:nth-child(3n+2) { --rotate: 0.8deg; }
+.photo-card:nth-child(3n)   { --rotate: -0.5deg; }
+.photo-card:nth-child(5n+1) { --rotate: 1.2deg; }
+.photo-card:nth-child(7n)   { --rotate: -1.2deg; }
+
 .photo-card:hover {
-  transform: scale(1.03);
-  box-shadow: 0 4px 16px rgba(24, 58, 99, 0.1);
+  transform: rotate(0deg) scale(1.06);
+  box-shadow: 0 6px 24px rgba(24, 58, 99, 0.15);
+  z-index: 2;
+  position: relative;
 }
 
 .photo-card img {
   width: 100%;
-  height: 180px;
-  object-fit: cover;
+  height: 100%;
   display: block;
+  object-fit: cover;
 }
 
-.photo-name {
-  display: block;
-  padding: 0.5rem;
-  font-size: 0.8rem;
-  color: #888;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@media (max-width: 768px) {
+  .photos-grid {
+    margin-left: calc(-10px + 4px);
+    margin-right: calc(-10px + 4px);
+  }
+
+  .photo-card {
+    height: 110px;
+    min-width: 80px;
+    max-width: 200px;
+  }
 }
+
+@media (max-width: 480px) {
+  .photo-card {
+    height: 120px;
+    min-width: calc(33.333% - 2px);
+    max-width: calc(50% - 2px);
+    flex-grow: 0;
+  }
+}
+
+.scroll-sentinel {
+  height: 1px;
+  width: 100%;
+}
+
 
 /* Sous-albums */
 .sub-albums {
@@ -369,6 +476,25 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1.2rem;
+}
+
+@media (max-width: 480px) {
+  .albums-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.6rem;
+  }
+
+  .album-thumb {
+    height: 100px;
+  }
+
+  .album-card-info {
+    padding: 0.5rem;
+  }
+
+  .album-card-info h3 {
+    font-size: 0.85rem;
+  }
 }
 
 .album-card {
@@ -418,6 +544,18 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
   margin-bottom: 0.2rem;
 }
 
+.album-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.3rem;
+}
+
+.album-meta-item {
+  font-size: 0.75rem;
+  color: #666;
+}
+
 .album-count {
   font-size: 0.8rem;
   color: #888;
@@ -427,77 +565,91 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(24, 58, 99, 0.95);
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-.lb-content {
-  max-width: 90vw;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.lb-content img {
-  max-width: 90vw;
-  max-height: 80vh;
+.lb-photo {
+  max-width: 100vw;
+  max-height: 100vh;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 4px;
 }
 
-.lb-toolbar {
-  margin-top: 0.75rem;
+.lb-topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  z-index: 1002;
 }
 
-.lb-caption {
-  color: #d4bfa0;
-  font-size: 0.9rem;
-  text-align: center;
-  margin: 0;
+.lb-counter {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
 }
 
 .lb-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
-.lb-action-btn {
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
+.lb-icon-btn {
+  background: none;
+  border: none;
   color: #fff;
-  border-radius: 6px;
-  padding: 0.3rem 0.6rem;
   cursor: pointer;
-  font-size: 1rem;
+  padding: 0.4rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
   text-decoration: none;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
 }
 
-.lb-action-btn:hover {
-  background: rgba(184,154,90,0.4);
+.lb-icon-btn:hover {
+  opacity: 1;
 }
 
 .exif-panel {
-  margin-top: 0.75rem;
-  background: rgba(0,0,0,0.4);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  max-height: 40vh;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 80vw;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 3.5rem 1.25rem 1.25rem;
   overflow-y: auto;
-  max-width: 500px;
+  z-index: 1001;
+}
+
+.exif-title {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 0.25rem;
+}
+
+.exif-filename {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+  margin: 0 0 1rem;
+  word-break: break-all;
 }
 
 .exif-loading {
-  color: #d4bfa0;
+  color: rgba(255,255,255,0.6);
   font-size: 0.85rem;
   margin: 0;
 }
@@ -512,9 +664,9 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 }
 
 .exif-key {
-  color: #d4bfa0;
+  color: rgba(255,255,255,0.6);
   font-size: 0.8rem;
-  padding: 0.25rem 0.5rem 0.25rem 0;
+  padding: 0.3rem 0.5rem 0.3rem 0;
   white-space: nowrap;
   font-weight: 500;
 }
@@ -522,52 +674,62 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 .exif-value {
   color: #fff;
   font-size: 0.8rem;
-  padding: 0.25rem 0;
+  padding: 0.3rem 0;
 }
 
-.lb-counter {
-  margin-left: 1rem;
-  color: rgba(255, 255, 255, 0.6);
+/* Slide-right transition */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
 }
 
-.lb-close,
 .lb-prev,
 .lb-next {
   position: fixed;
   background: none;
   border: none;
   color: #fff;
-  font-size: 2rem;
+  font-size: 3rem;
   cursor: pointer;
   padding: 1rem;
   z-index: 1001;
-  opacity: 0.7;
+  opacity: 0.5;
   transition: opacity 0.2s;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.lb-close:hover,
+.lb-prev { left: 0.5rem; }
+.lb-next { right: 0.5rem; }
+
 .lb-prev:hover,
 .lb-next:hover {
   opacity: 1;
-  color: #d4bfa0;
 }
 
-.lb-close {
-  top: 1rem;
-  right: 1rem;
-}
+@media (max-width: 768px) {
+  .lb-prev,
+  .lb-next {
+    font-size: 2rem;
+    padding: 0.5rem;
+  }
 
-.lb-prev {
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 3rem;
-}
+  .lb-topbar {
+    padding: 0.5rem;
+  }
 
-.lb-next {
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 3rem;
+  .lb-counter {
+    font-size: 0.75rem;
+  }
+
+  .exif-panel {
+    width: 100%;
+    max-width: 100vw;
+  }
 }
 </style>

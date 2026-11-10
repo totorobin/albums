@@ -10,7 +10,7 @@ function scanAlbums(photosRoot: string, baseUrl: string, prefix = ""): any[] {
 
   const entries = readdirSync(photosRoot).filter((name) => {
     const full = resolve(photosRoot, name);
-    return statSync(full).isDirectory();
+    return statSync(full).isDirectory() && name !== "thumbs";
   });
 
   const albums: any[] = [];
@@ -28,15 +28,32 @@ function scanAlbums(photosRoot: string, baseUrl: string, prefix = ""): any[] {
 
     const images: string[] = [];
     const imageNames: string[] = [];
+    const thumbs: (string | null)[] = [];
+    const thumbsDir = resolve(dirPath, "thumbs");
+    const hasThumbs = existsSync(thumbsDir) && statSync(thumbsDir).isDirectory();
+
     for (const file of readdirSync(dirPath)) {
       if (IMAGE_EXTENSIONS.test(file) && statSync(resolve(dirPath, file)).isFile()) {
         images.push(`${albumUrl}/${encodeURIComponent(file)}`);
         imageNames.push(file);
+        if (hasThumbs && existsSync(resolve(thumbsDir, file))) {
+          thumbs.push(`${albumUrl}/thumbs/${encodeURIComponent(file)}`);
+        } else {
+          thumbs.push(null);
+        }
       }
     }
 
     const titleMatch = info.match(/^#\s+(.+)$/m);
     const title = titleMatch ? titleMatch[1] : dir;
+
+    // Extraire date, auteur, lieu depuis info.md
+    const dateMatch = info.match(/^-\s*\*\*Date\*\*\s*:\s*(.+)$/im);
+    const authorMatch = info.match(/^-\s*\*\*Auteur\*\*\s*:\s*(.+)$/im);
+    const lieuMatch = info.match(/^-\s*\*\*Lieu\*\*\s*:\s*(.+)$/im);
+    const date = dateMatch ? dateMatch[1].trim() : null;
+    const author = authorMatch ? authorMatch[1].trim() : null;
+    const lieu = lieuMatch ? lieuMatch[1].trim() : null;
 
     const thumbMatch = info.match(/^-\s*\*\*thumbnail\*\*\s*:\s*(.+)$/im);
     let thumbnail: string | null = null;
@@ -55,6 +72,11 @@ function scanAlbums(photosRoot: string, baseUrl: string, prefix = ""): any[] {
       thumbnail,
       images,
       imageNames,
+      thumbs,
+      hasThumbs,
+      date,
+      author,
+      lieu,
     });
 
     // Sous-dossiers récursifs
@@ -81,6 +103,14 @@ export default defineConfig(({ mode }) => {
             const albums = scanAlbums(photosRoot, "photos");
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify(albums));
+          });
+
+          // Simulate generate_thumbs.php (no-op in dev, thumbs served as-is)
+          server.middlewares.use("/generate_thumbs.php", (req, res) => {
+            const url = new URL(req.url || "", "http://localhost");
+            const albumParam = url.searchParams.get("album") || "";
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ album: albumParam, generated: 0, skipped: 0, errors: [] }));
           });
 
           // Serve photo files
