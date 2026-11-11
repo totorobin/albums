@@ -15,7 +15,7 @@
       </div>
     </div>
     <button class="lb-prev" @click="prevPhoto">‹</button>
-    <img class="lb-photo" :src="images[currentIndex]" :alt="imageNames[currentIndex]" @click.self="close" @touchstart="onTouchStart" @touchend="onTouchEnd" />
+    <img class="lb-photo" :src="images[currentIndex]" :alt="imageNames[currentIndex]" @click.self="close" @touchstart="onTouchStart" @touchend="onTouchEnd" style="view-transition-name: lb-photo" />
     <button class="lb-next" @click="nextPhoto">›</button>
     <transition name="slide-right">
       <div v-if="showExif" class="exif-panel">
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, shallowRef } from "vue";
+import { ref, watch, onMounted, onUnmounted, shallowRef, nextTick } from "vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -71,13 +71,24 @@ function close() {
   exifData.value = null;
 }
 
+function navigate(newIndex: number, dir: 'next' | 'prev') {
+  document.documentElement.dataset.lbDir = dir;
+  if ('startViewTransition' in document) {
+    (document as any).startViewTransition(async () => {
+      currentIndex.value = newIndex;
+      await nextTick();
+    });
+  } else {
+    currentIndex.value = newIndex;
+  }
+}
+
 function nextPhoto() {
-  currentIndex.value = (currentIndex.value + 1) % props.images.length;
+  navigate((currentIndex.value + 1) % props.images.length, 'next');
 }
 
 function prevPhoto() {
-  currentIndex.value =
-    (currentIndex.value - 1 + props.images.length) % props.images.length;
+  navigate((currentIndex.value - 1 + props.images.length) % props.images.length, 'prev');
 }
 
 let touchStartX = 0;
@@ -415,5 +426,39 @@ onUnmounted(() => {
     width: 100%;
     max-width: 100vw;
   }
+}
+</style>
+
+<style>
+@keyframes lb-slide-out-left {
+  to { transform: translateX(-25%); opacity: 0; }
+}
+@keyframes lb-slide-in-right {
+  from { transform: translateX(25%); opacity: 0; }
+}
+@keyframes lb-slide-out-right {
+  to { transform: translateX(25%); opacity: 0; }
+}
+@keyframes lb-slide-in-left {
+  from { transform: translateX(-25%); opacity: 0; }
+}
+
+::view-transition-old(lb-photo),
+::view-transition-new(lb-photo) {
+  animation-duration: 0.25s;
+  animation-timing-function: ease;
+}
+
+:root[data-lb-dir="next"] ::view-transition-old(lb-photo) {
+  animation-name: lb-slide-out-left;
+}
+:root[data-lb-dir="next"] ::view-transition-new(lb-photo) {
+  animation-name: lb-slide-in-right;
+}
+:root[data-lb-dir="prev"] ::view-transition-old(lb-photo) {
+  animation-name: lb-slide-out-right;
+}
+:root[data-lb-dir="prev"] ::view-transition-new(lb-photo) {
+  animation-name: lb-slide-in-left;
 }
 </style>

@@ -100,11 +100,18 @@ function scanAlbums($dirPath, $baseUrl, $prefix, $extensions) {
             }
         }
 
+        $thumbnailThumb = null;
+        $thumbIdx = array_search($thumbnail, $images);
+        if ($thumbIdx !== false && isset($thumbs[$thumbIdx]) && $thumbs[$thumbIdx] !== null) {
+            $thumbnailThumb = $thumbs[$thumbIdx];
+        }
+
         $albums[] = [
             'id' => $albumId,
             'title' => $title,
             'info' => $info,
             'thumbnail' => $thumbnail,
+            'thumbnailThumb' => $thumbnailThumb,
             'images' => $images,
             'imageNames' => $imageNames,
             'thumbs' => $thumbs,

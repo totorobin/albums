@@ -3,6 +3,7 @@ export interface Album {
   title: string;
   info: string;
   thumbnail: string | null;
+  thumbnailThumb: string | null;
   images: string[];
   imageNames: string[];
   thumbs: (string | null)[];

@@ -7,7 +7,7 @@
       class="album-card"
     >
       <div class="album-thumb">
-        <img v-if="album.thumbnail" :src="album.thumbnail" :alt="album.title" />
+        <img v-if="album.thumbnail" :src="album.thumbnailThumb ?? album.thumbnail" :alt="album.title" />
         <div v-else class="no-thumb">📁</div>
       </div>
       <div class="album-card-info">
