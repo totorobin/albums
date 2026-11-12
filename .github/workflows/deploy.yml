@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branche ou tag à déployer"
+        required: false
+        default: "main"
 
 jobs:
   deploy:
