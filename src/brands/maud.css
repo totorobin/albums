@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+
+:root {
+  --font-primary: 'Lato', sans-serif;
+
+  --color-primary: #183a63;
+  --color-accent: #b89a5a;
+
+  --color-bg: #ffffff;
+  --color-surface: #f0ebe0;
+  --color-border: #e8e0d0;
+
+  --color-text: #444444;
+  --color-text-muted: #888888;
+  --color-text-secondary: #666666;
+
+  --color-header-bg: #ffffff;
+  --color-header-shadow: rgba(0, 0, 0, 0.06);
+
+  --color-footer-bg: #183a63;
+  --color-footer-text: #ffffff;
+  --color-footer-link: #d4bfa0;
+
+  --color-card-bg: #ffffff;
+  --color-card-border: #e8e0d0;
+  --color-card-shadow: rgba(24, 58, 99, 0.12);
+  --color-card-shadow-subtle: rgba(24, 58, 99, 0.07);
+  --color-card-shadow-hover: rgba(24, 58, 99, 0.15);
+
+  --color-thumb-bg: #f0f4f9;
+  --color-no-thumb: #b89a5a;
+
+  --color-code-bg: #f0ebe0;
+  --color-code-text: #183a63;
+
+  --color-spinner-border: #dddddd;
+  --color-spinner-active: #183a63;
+}

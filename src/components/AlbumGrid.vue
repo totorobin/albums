@@ -42,8 +42,8 @@ withDefaults(defineProps<{
 }
 
 .album-card {
-  background: #fff;
-  border: 1px solid #e8e0d0;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
   border-radius: 8px;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -53,14 +53,14 @@ withDefaults(defineProps<{
 
 .album-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(24, 58, 99, 0.12);
+  box-shadow: 0 8px 24px var(--color-card-shadow);
 }
 
 .album-thumb {
   width: 100%;
   height: 160px;
   overflow: hidden;
-  background: #f0f4f9;
+  background: var(--color-thumb-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,7 +74,7 @@ withDefaults(defineProps<{
 
 .no-thumb {
   font-size: 3rem;
-  color: #b89a5a;
+  color: var(--color-no-thumb);
 }
 
 .album-card-info {
@@ -85,7 +85,7 @@ withDefaults(defineProps<{
 .album-card-info h3 {
   font-size: 1rem;
   font-weight: 500;
-  color: #183a63;
+  color: var(--color-primary);
   margin-bottom: 0.2rem;
 }
 
@@ -98,12 +98,12 @@ withDefaults(defineProps<{
 
 .album-meta-item {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .album-count {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 480px) {

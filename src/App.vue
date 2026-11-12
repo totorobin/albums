@@ -2,19 +2,26 @@
   <div class="app">
     <header class="app-header">
       <div class="header-inner">
-        <router-link to="/" class="app-title">Galerie Photos</router-link>
+        <router-link to="/" class="app-title">{{ appTitle }}</router-link>
       </div>
     </header>
     <main class="app-main">
       <router-view />
     </main>
     <footer class="app-footer">
-      <span>© 2026 Maud Robin</span>
-      <span class="sep">|</span>
-      <a href="https://maudrobin.fr">maudrobin.fr</a>
+      <span>{{ footerCopy }}</span>
+      <span v-if="footerLink" class="sep">|</span>
+      <a v-if="footerLink" :href="footerLink">{{ footerLinkText }}</a>
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+const appTitle = import.meta.env.VITE_APP_TITLE || 'Galerie Photos';
+const footerCopy = import.meta.env.VITE_FOOTER_COPY || '';
+const footerLink = import.meta.env.VITE_FOOTER_LINK || '';
+const footerLinkText = import.meta.env.VITE_FOOTER_LINK_TEXT || footerLink;
+</script>
 
 <style>
 * {
@@ -24,9 +31,9 @@
 }
 
 body {
-  font-family: "Lato", sans-serif;
-  background: #fff;
-  color: #444;
+  font-family: var(--font-primary, 'Lato', sans-serif);
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #444);
   min-height: 100vh;
   padding-bottom: 52px;
 }
@@ -37,9 +44,9 @@ a {
 }
 
 .app-header {
-  background: #fff;
-  border-bottom: 1px solid #e8e0d0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: var(--color-header-bg, #fff);
+  border-bottom: 1px solid var(--color-border, #e8e0d0);
+  box-shadow: 0 2px 8px var(--color-header-shadow, rgba(0, 0, 0, 0.06));
   position: sticky;
   top: 0;
   z-index: 200;
@@ -57,12 +64,12 @@ a {
 .app-title {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #183a63;
+  color: var(--color-primary, #183a63);
   letter-spacing: 0.02em;
 }
 
 .app-title:hover {
-  color: #b89a5a;
+  color: var(--color-accent, #b89a5a);
 }
 
 .app-main {
@@ -77,8 +84,8 @@ a {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #183a63;
-  color: #fff;
+  background-color: var(--color-footer-bg, #183a63);
+  color: var(--color-footer-text, #fff);
   text-align: center;
   padding: 12px 20px;
   font-size: 13px;
@@ -86,12 +93,12 @@ a {
 }
 
 .app-footer a {
-  color: #d4bfa0;
+  color: var(--color-footer-link, #d4bfa0);
   text-decoration: none;
 }
 
 .app-footer a:hover {
-  color: #fff;
+  color: var(--color-footer-text, #fff);
   text-decoration: underline;
 }
 

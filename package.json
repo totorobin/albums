@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode maud",
+    "dev:docker": "USE_DOCKER_PHP=true vite --mode maud",
+    "dev:chevalemoi": "vite --mode chevalemoi",
+    "dev:chevalemoi:docker": "USE_DOCKER_PHP=true vite --mode chevalemoi",
     "build": "vue-tsc && vite build",
     "preview": "vite preview"
   },
