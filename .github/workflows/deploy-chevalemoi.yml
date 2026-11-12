@@ -1,4 +1,4 @@
-name: Build & Deploy — Cheval & Émoi
+name: B&D photos.cheval-emoi.org
 
 on:
   push:

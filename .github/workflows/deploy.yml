@@ -1,4 +1,4 @@
-name: Build & Deploy
+name: B&D photos.maudrobin.fr
 
 on:
   push:
