@@ -20,7 +20,10 @@ function scanAlbums(photosRoot: string, baseUrl: string, prefix = ""): any[] {
     const albumId = prefix ? `${prefix}/${dir}` : dir;
     const albumUrl = `${baseUrl}/${encodeURIComponent(dir)}`;
 
-    const infoPath = resolve(dirPath, "info.md");
+    // Priorité : _info.md (nouveau nom), fallback info.md (rétrocompatibilité)
+    const infoPath = existsSync(resolve(dirPath, "_info.md"))
+      ? resolve(dirPath, "_info.md")
+      : resolve(dirPath, "info.md");
     let info = "";
     if (existsSync(infoPath)) {
       info = readFileSync(infoPath, "utf-8");
@@ -87,34 +90,40 @@ function scanAlbums(photosRoot: string, baseUrl: string, prefix = ""): any[] {
   return albums;
 }
 
+const useDockerPhp = process.env.USE_DOCKER_PHP === "true";
+const dockerPhpUrl = process.env.DOCKER_PHP_URL || "http://localhost:8080";
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const photosPath = env.VITE_PHOTOS_PATH || "./photos";
   const photosRoot = resolve(process.cwd(), photosPath);
 
-  return {
-    plugins: [
-      vue(),
-      {
+  const proxyConfig = useDockerPhp
+    ? {
+        "/api.php": { target: dockerPhpUrl, changeOrigin: true },
+        "/generate_thumbs.php": { target: dockerPhpUrl, changeOrigin: true },
+        "/photos": { target: dockerPhpUrl, changeOrigin: true },
+      }
+    : undefined;
+
+  const devApiPlugin = !useDockerPhp
+    ? {
         name: "dev-api",
-        configureServer(server) {
-          // Serve api.php equivalent in dev
-          server.middlewares.use("/api.php", (_req, res) => {
+        configureServer(server: any) {
+          server.middlewares.use("/api.php", (_req: any, res: any) => {
             const albums = scanAlbums(photosRoot, "photos");
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify(albums));
           });
 
-          // Simulate generate_thumbs.php (no-op in dev, returns skipped)
-          server.middlewares.use("/generate_thumbs.php", (req, res) => {
+          server.middlewares.use("/generate_thumbs.php", (req: any, res: any) => {
             const url = new URL(req.url || "", "http://localhost");
             const file = url.searchParams.get("file") || "";
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify({ status: "skipped", file }));
           });
 
-          // Serve photo files
-          server.middlewares.use("/photos", (req, res, next) => {
+          server.middlewares.use("/photos", (req: any, res: any, next: any) => {
             const urlPath = decodeURIComponent(req.url || "").replace(/^\//, "");
             const filePath = resolve(photosRoot, urlPath);
             if (existsSync(filePath) && statSync(filePath).isFile()) {
@@ -131,12 +140,19 @@ export default defineConfig(({ mode }) => {
             }
           });
         },
-      },
-    ],
+      }
+    : null;
+
+  return {
+    plugins: [vue(), ...(devApiPlugin ? [devApiPlugin] : [])],
     base: "./",
+    server: {
+      proxy: proxyConfig,
+    },
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),
+        "@brand-css": resolve(__dirname, `src/brands/${env.VITE_BRAND || "maud"}.css`),
       },
     },
     build: {

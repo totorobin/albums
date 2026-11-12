@@ -42,8 +42,10 @@ function scanAlbums($dirPath, $baseUrl, $prefix, $extensions) {
         $albumId = $prefix ? $prefix . '/' . $dir : $dir;
         $albumUrl = $baseUrl . '/' . rawurlencode($dir);
 
-        $infoPath = $subPath . '/info.md';
+        // Priorité : _info.md (nouveau nom), fallback info.md (rétrocompatibilité)
+        $infoPath = file_exists($subPath . '/_info.md') ? $subPath . '/_info.md' : $subPath . '/info.md';
         if (!file_exists($infoPath)) {
+            $infoPath = $subPath . '/_info.md';
             $template = "# $dir\n\n- **Date** : \n- **Auteur** : \n- **Lieu** : \n- **thumbnail** : \n\n";
             file_put_contents($infoPath, $template);
         }

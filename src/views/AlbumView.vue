@@ -172,20 +172,20 @@ onMounted(() => {
 .back-link {
   display: inline-block;
   margin-bottom: 1rem;
-  color: #183a63;
+  color: var(--color-primary);
   font-size: 0.95rem;
 }
 
 .back-link:hover {
   text-decoration: underline;
-  color: #b89a5a;
+  color: var(--color-accent);
 }
 
 .album-title {
   font-size: 1.8rem;
   font-weight: 300;
   margin-bottom: 1rem;
-  color: #183a63;
+  color: var(--color-primary);
   letter-spacing: 0.02em;
 }
 
@@ -218,7 +218,7 @@ onMounted(() => {
   max-width: 300px;
   transition: transform 0.25s, box-shadow 0.25s;
   transform: rotate(var(--rotate, 0deg));
-  box-shadow: 2px 3px 12px rgba(24, 58, 99, 0.07);
+  box-shadow: 2px 3px 12px var(--color-card-shadow-subtle);
   contain: layout style paint;
 }
 
@@ -230,7 +230,7 @@ onMounted(() => {
 
 .photo-card:hover {
   transform: rotate(0deg) scale(1.06);
-  box-shadow: 0 6px 24px rgba(24, 58, 99, 0.15);
+  box-shadow: 0 6px 24px var(--color-card-shadow-hover);
   z-index: 2;
   position: relative;
 }
@@ -270,15 +270,15 @@ onMounted(() => {
   gap: 0.5rem;
   justify-content: center;
   padding: 1rem;
-  color: #888;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
 .thumb-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid #ddd;
-  border-top-color: #183a63;
+  border: 2px solid var(--color-spinner-border);
+  border-top-color: var(--color-spinner-active);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -296,7 +296,7 @@ onMounted(() => {
 .sub-albums-title {
   font-size: 1.2rem;
   font-weight: 400;
-  color: #183a63;
+  color: var(--color-primary);
   margin-bottom: 1rem;
 }
 

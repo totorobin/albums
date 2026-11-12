@@ -31,20 +31,20 @@ const rootAlbums = computed(() =>
   font-size: 1.8rem;
   font-weight: 300;
   margin-bottom: 1.5rem;
-  color: #183a63;
+  color: var(--color-primary);
   letter-spacing: 0.02em;
 }
 
 .empty {
   font-size: 1rem;
-  color: #888;
+  color: var(--color-text-muted);
 }
 
 .empty code {
-  background: #f0ebe0;
+  background: var(--color-code-bg);
   padding: 0.2em 0.5em;
   border-radius: 4px;
-  color: #183a63;
+  color: var(--color-code-text);
 }
 
 @media (max-width: 480px) {

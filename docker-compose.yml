@@ -1,0 +1,13 @@
+services:
+
+  # Serveur PHP + Apache + FTP — un seul container, tout tourne en www-data
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:80"    # Apache / PHP
+      - "21:21"      # FTP
+      - "21100-21110:21100-21110"  # FTP passif
+    volumes:
+      - .:/var/www/html
